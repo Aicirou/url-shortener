@@ -1,0 +1,286 @@
+openapi: 3.0.0
+info:
+  title: Authentication API
+  description: API for user authentication including Google OAuth and user registration.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local server
+tags:
+  - name: Authentication
+    description: Endpoints for authentication
+paths:
+  /auth/google:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate Google Authentication
+      operationId: googleAuth
+      description: >
+        This URL should be pasted in any browser where a Google Mail session is active. After successfully authenticating with Google, copy the access token provided upon authentication. This access token must be included in Bearer Token of all subsequent API requests to ensure the user is authenticated.
+      responses:
+        '302':
+          description: Redirects to Google for authentication
+  /auth/google/redirect:
+    get:
+      tags:
+        - Authentication
+      summary: Google Authentication Redirect
+      operationId: googleAuthRedirect
+      responses:
+        '200':
+          description: Returns user info from Google after successful authentication
+          content:
+            application/json:
+              example:
+                message: User info from Google
+                user:
+                  id: "12345"
+                  email: user@example.com
+                  name: John Doe
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDTO'
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error
+  /api/shorten:
+    post:
+      tags:
+        - URL Shortening
+      summary: Create a shortened URL
+      operationId: createShortUrl
+      description: >
+        Create a shortened URL for the provided long URL. The user must be authenticated through Google OAuth and must not exceed the rate limit for URL creation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShortUrlDTO'
+      responses:
+        '201':
+          description: URL shortened successfully
+          content:
+            application/json:
+              example:
+                shortUrl: 'http://short.ly/abc123'
+                createdAt: '2024-11-24T10:00:00Z'
+        '400':
+          description: Invalid request data
+        '429':
+          description: Rate limit exceeded
+  /api/shorten/{alias}:
+    get:
+      tags:
+        - URL Shortening
+      summary: Redirect to long URL
+      operationId: redirectToLongUrl
+      parameters:
+        - name: alias
+          in: path
+          required: true
+          description: The alias for the shortened URL
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirects to the long URL
+        '401':
+          description: Unauthorized access - Google OAuth required
+          content:
+            application/json:
+              example:
+                statusCode: 401
+                message: "Unauthorized"
+        '404':
+          description: Short URL not found
+  /api/analytics/{alias}:
+    get:
+      tags:
+        - Analytics
+      summary: Get analytics data by alias
+      operationId: getAnalyticsByAlias
+      description: Retrieve analytics data for a specific alias.
+      parameters:
+        - name: alias
+          in: path
+          required: true
+          description: The alias for which to fetch the analytics data.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analytics data for the alias
+          content:
+            application/json:
+              example:
+                totalClicks: 3
+                uniqueClicks: 1
+                clicksByDate:
+                  - date: '2024-11-24'
+                    click_count: 3
+                osType:
+                  - osName: 'Unknown'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+                deviceType:
+                  - deviceName: 'Desktop'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+        '401':
+          description: Unauthorized access - Google OAuth required
+          content:
+            application/json:
+              example:
+                statusCode: 401
+                message: "Unauthorized"
+        '404':
+          description: Analytics data for the alias not found
+
+  /api/analytics/topic/{topic}:
+    get:
+      tags:
+        - Analytics
+      summary: Get analytics data by topic
+      operationId: getAnalyticsByTopic
+      description: Retrieve analytics data for a specific topic.
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          description: The topic for which to fetch the analytics data.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analytics data for the topic
+          content:
+            application/json:
+              example:
+                totalUrls: 15
+                totalClicks: 4
+                uniqueClicks: 1
+                clicksByDate:
+                  - date: '2024-11-24'
+                    click_count: 4
+                osType:
+                  - osName: 'Unknown'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+                deviceType:
+                  - deviceName: 'Desktop'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+        '401':
+          description: Unauthorized access - Google OAuth required
+          content:
+            application/json:
+              example:
+                statusCode: 401
+                message: "Unauthorized"
+        '404':
+          description: Analytics data for the topic not found
+
+  /api/overall-analytics:
+    get:
+      tags:
+        - Analytics
+      summary: Get overall analytics
+      operationId: getOverallAnalytics
+      description: Retrieve overall analytics data for the authenticated user.
+      responses:
+        '200':
+          description: Overall analytics data for the authenticated user
+          content:
+            application/json:
+              example:
+                totalClicks: 3
+                uniqueClicks: 1
+                clicksByDate:
+                  - date: '2024-11-24'
+                    click_count: 3
+                osType:
+                  - osName: 'Unknown'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+                deviceType:
+                  - deviceName: 'Desktop'
+                    uniqueClicks: 1
+                    uniqueUsers: 1
+                urls:
+                  - shortUrl: 'http://localhost:3000/testing1'
+                    totalClicks: 3
+                    uniqueClicks: 1
+        '401':
+          description: Unauthorized access - Google OAuth required
+          content:
+            application/json:
+              example:
+                statusCode: 401
+                message: "Unauthorized"
+
+components:
+  schemas:
+    UserDTO:
+      type: object
+      properties:
+        emailId:
+          type: string
+          format: email
+          description: The user's email address.
+          example: user@example.com
+        firstName:
+          type: string
+          description: The user's first name.
+          example: John
+        lastName:
+          type: string
+          description: The user's last name.
+          example: Doe
+      required:
+        - emailId
+        - firstName
+        - lastName
+    CreateShortUrlDTO:
+      type: object
+      properties:
+        longUrl:
+          type: string
+          format: url
+          description: The original long URL to be shortened
+          example: 'https://www.example.com/some/long/url'
+        customAlias:
+          type: string
+          description: A custom alias for the shortened URL (optional)
+          example: 'myCustomAlias'
+        topic:
+          type: string
+          description: A topic or category associated with the URL (optional)
+          example: 'technology'
+      required:
+        - longUrl
+  securitySchemes:
+    GoogleAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
+          tokenUrl: 'https://oauth2.googleapis.com/token'
+          scopes:
+            'profile': 'Access user profile information'
+            'email': 'Access user email'
+
+security:
+  - GoogleAuth: []

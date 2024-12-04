@@ -1,0 +1,81 @@
+services:
+  service-url-shortener:
+    container_name: url-shortener
+    # image: testing_shortener:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: development
+      args:
+        NODE_ENV: dev
+    ports:
+      - 3000:3000
+    env_file:
+      - .env/db.env
+      - .env/auth.env
+      - .env/redis.env
+    networks:
+      alter_network:
+        # ipv4_address: 30.7.1.200
+    volumes:
+      - ./src:/home/alter_user/url-shortener/src
+      - ./node_modules:/home/alter_user/url-shortener/node_modules/
+    command: npm run start:debug
+
+  service-alt-redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - '6379:6379' # Exposes Redis on localhost:6379
+    networks:
+      alter_network:
+        # ipv4_address: 30.7.1.202
+    volumes:
+      - redisdata:/data
+    command: ['redis-server']
+
+  service-alt-postgres:
+    container_name: alter-postgres
+    image: postgres:latest
+    build:
+      context: ./db
+    environment:
+      POSTGRES_USER: alt_user
+      POSTGRES_PASSWORD: alter
+      POSTGRES_DB: alter
+    ports:
+      - 5432:5432
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      alter_network:
+        # ipv4_address: 30.7.1.201
+
+  service-alt-pgadmin:
+    container_name: alter-pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_SETUP_EMAIL: admin@admin.com
+      PGADMIN_SETUP_PASSWORD: root
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    volumes:
+      - ./local-setup/pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - 5050:80
+    networks:
+      alter_network:
+
+networks:
+  alter_network:
+    driver: bridge
+    # ipam:
+    #   driver: default
+    #   config:
+    #     - subnet: 30.7.0.0/16
+
+volumes:
+  pgdata:
+  redisdata:
